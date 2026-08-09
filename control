@@ -1,0 +1,9 @@
+Package: com.andyching.ipadarrowcursor
+Name: Arrow, Finally.
+Version: 0.2.4
+Architecture: iphoneos-arm
+Description: Finally gives jailbroken iPadOS 17 a macOS-style arrow cursor while preserving native hover shapes.
+Maintainer: Andy Ching
+Author: Andy Ching
+Section: Tweaks
+Depends: firmware (>= 15.0), ellekit
