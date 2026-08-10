@@ -8,6 +8,7 @@
 
 - macOS 風格箭頭，點擊熱點位於箭頭左上角。
 - 黑色填滿與沿箭頭路徑繪製的白色描邊。
+- 箭頭會跟著介面方向旋轉（直向、橫向、上下顛倒）。
 - 支援「輔助使用 → 指標控制 → 指標大小」。
 - 支援「自動隱藏指標」，隱藏後不殘留模糊箭頭。
 - 保留文字 I-beam、控制項 hover 與 App 自訂指標。
@@ -29,13 +30,13 @@
 最新版套件位於：
 
 ```text
-release/com.andyching.ipadarrowcursor_0.2.4_iphoneos-arm64.deb
+release/com.andyching.ipadarrowcursor_0.2.5_iphoneos-arm64.deb
 ```
 
 可以用 Sileo、Zebra 或 Filza 開啟 `.deb` 安裝，也可以複製到裝置後在 NewTerm 執行：
 
 ```sh
-sudo dpkg -i /path/to/com.andyching.ipadarrowcursor_0.2.4_iphoneos-arm64.deb
+sudo dpkg -i /path/to/com.andyching.ipadarrowcursor_0.2.5_iphoneos-arm64.deb
 sudo killall pointeruid
 ```
 
@@ -102,12 +103,12 @@ THEOS=/path/to/theos make clean package FINALPACKAGE=1
 ├── LICENSE                     MIT License
 ├── RESEARCH.md                 iPadOS 17/26 指標管線研究
 └── release/
-    └── com.andyching.ipadarrowcursor_0.2.4_iphoneos-arm64.deb
+    └── com.andyching.ipadarrowcursor_0.2.5_iphoneos-arm64.deb
 ```
 
-## 0.2.4 發佈資訊
+## 0.2.5 發佈資訊
 
-- SHA-256：`1f39ccddc7d583edb853bfecf8d1af3943093c46e850b3d5a29b9443bf2feeed`
+- SHA-256：`28affe64f9f3414452ad3298032e735c1814cb8accac46595a5b6d21b14156e6`
 - 套件架構：`iphoneos-arm64`
 - 內含 Mach-O 架構：`arm64 arm64e`
 - 安裝位置：`/var/jb/Library/MobileSubstrate/DynamicLibraries/`
@@ -119,6 +120,7 @@ THEOS=/path/to/theos make clean package FINALPACKAGE=1
 - `.deb` 結構與 rootless 安裝路徑已核對。
 - dylib 包含 `arm64`、`arm64e` 並具有 code signature。
 - iPad mini 6／iPadOS 17.0 已確認箭頭、指標大小與自動隱藏功能。
+- iPad mini 6／iPadOS 17.0 已確認直向與橫向的箭頭方向。
 
 ### 發佈頁建議說明
 

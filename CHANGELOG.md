@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.5 - 2026-08-11
+
+- 修正橫向與上下顛倒時箭頭不會跟著介面旋轉的問題。指標路徑現在依照
+  `FBSOrientationObserver` 回報的介面方向，繞著點擊熱點旋轉，與 iPadOS 26
+  對內建箭頭路徑套用的角度一致。
+
 ## 0.2.4 - 2026-08-10
 
 Initial public release as **Arrow, Finally.**

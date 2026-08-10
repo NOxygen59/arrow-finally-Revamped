@@ -44,6 +44,20 @@ updateHandlerCollection:(id)updateHandlerCollection
 - (void)_handleAccessibilityPointerSizePreferencesDidChange;
 @end
 
+// FrontBoardServices is already linked by pointeruid. This is the same
+// orientation source iPadOS 26 uses from -[PUIDPointerShapeView
+// _didUpdateToOrientation:duration:rotationDirection:].
+@interface FBSOrientationUpdate : NSObject
+@property (nonatomic, readonly) NSInteger orientation;
+@property (nonatomic, readonly) double duration;
+@end
+
+@interface FBSOrientationObserver : NSObject
+@property (nonatomic, copy) void (^handler)(FBSOrientationUpdate *update);
+- (NSInteger)activeInterfaceOrientation;
+- (void)invalidate;
+@end
+
 static const NSInteger PSPointerShapeTypeSystem = 1;
 static const CGFloat ArrowBaseScale = 1.40;
 
@@ -51,6 +65,15 @@ static void *ArrowActiveKey = &ArrowActiveKey;
 static void *ArrowScaleKey = &ArrowScaleKey;
 static void *ArrowOutlineLayerKey = &ArrowOutlineLayerKey;
 static void *PreviousReplacementColorKey = &PreviousReplacementColorKey;
+
+// Pointer shape paths live in a coordinate space whose origin is the pointer
+// hotspot and whose axes follow the display, not the interface. The circular
+// system shape is rotation invariant, so iPadOS 17 never rotates anything; an
+// arrow has to be rotated by hand or it keeps pointing at the physical top-left
+// corner of the display in landscape.
+static UIInterfaceOrientation ArrowInterfaceOrientation = UIInterfaceOrientationPortrait;
+static FBSOrientationObserver *ArrowOrientationObserver = nil;
+static __weak PUIDPointerShapeView *ArrowShapeView = nil;
 
 // libAccessibility returns the pointer multiplier as a 32-bit float on
 // arm64. Declaring this as CGFloat (double) makes valid values look invalid.
@@ -82,6 +105,22 @@ static BOOL AccessibilityPointerAutoHideEnabled(void) {
     return function ? function() : NO;
 }
 
+// Angles taken from the rotation table iPadOS 26 indexes by interface
+// orientation when it transforms its built-in arrow path. Note that
+// UIInterfaceOrientationLandscapeLeft is 4 and LandscapeRight is 3.
+static CGFloat ArrowRotationForInterfaceOrientation(UIInterfaceOrientation orientation) {
+    switch (orientation) {
+        case UIInterfaceOrientationPortraitUpsideDown:  // 2
+            return -M_PI;
+        case UIInterfaceOrientationLandscapeRight:      // 3
+            return M_PI_2;
+        case UIInterfaceOrientationLandscapeLeft:       // 4
+            return -M_PI_2;
+        default:
+            return 0.0;
+    }
+}
+
 static CGPathRef CreateArrowCursorPath(CGFloat scale) {
     CGMutablePathRef path = CGPathCreateMutable();
 
@@ -95,7 +134,17 @@ static CGPathRef CreateArrowCursorPath(CGFloat scale) {
     CGPathAddLineToPoint(path, NULL, 6.8 * scale, 11.7 * scale);
     CGPathAddLineToPoint(path, NULL, 11.6 * scale, 11.7 * scale);
     CGPathCloseSubpath(path);
-    return path;
+
+    CGFloat angle = ArrowRotationForInterfaceOrientation(ArrowInterfaceOrientation);
+    if (angle == 0.0) {
+        return path;
+    }
+
+    // Rotate around (0, 0) so the hotspot stays on the arrow tip.
+    CGAffineTransform rotation = CGAffineTransformMakeRotation(angle);
+    CGPathRef rotated = CGPathCreateCopyByTransformingPath(path, &rotation);
+    CGPathRelease(path);
+    return rotated;
 }
 
 static CGFloat ArrowScaleForView(PUIDPointerShapeView *view) {
@@ -195,6 +244,56 @@ static void RefreshActiveArrow(PUIDPointerShapeView *view) {
     }
 }
 
+static BOOL IsSupportedInterfaceOrientation(NSInteger orientation) {
+    switch (orientation) {
+        case UIInterfaceOrientationPortrait:
+        case UIInterfaceOrientationPortraitUpsideDown:
+        case UIInterfaceOrientationLandscapeLeft:
+        case UIInterfaceOrientationLandscapeRight:
+            return YES;
+        default:
+            return NO;
+    }
+}
+
+static void ApplyInterfaceOrientation(NSInteger orientation) {
+    if (!IsSupportedInterfaceOrientation(orientation) ||
+        orientation == ArrowInterfaceOrientation) {
+        return;
+    }
+    ArrowInterfaceOrientation = (UIInterfaceOrientation)orientation;
+    // Re-sending the system shape rebuilds the rotated path through the hook
+    // below, which also repositions the outline layer.
+    RefreshActiveArrow(ArrowShapeView);
+}
+
+static void StartObservingInterfaceOrientation(void) {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        Class observerClass = NSClassFromString(@"FBSOrientationObserver");
+        if (!observerClass) {
+            return;
+        }
+
+        ArrowOrientationObserver = [[observerClass alloc] init];
+        if ([ArrowOrientationObserver
+                respondsToSelector:@selector(activeInterfaceOrientation)]) {
+            NSInteger current = [ArrowOrientationObserver activeInterfaceOrientation];
+            if (IsSupportedInterfaceOrientation(current)) {
+                ArrowInterfaceOrientation = (UIInterfaceOrientation)current;
+            }
+        }
+
+        ArrowOrientationObserver.handler = ^(FBSOrientationUpdate *update) {
+            NSInteger orientation = update.orientation;
+            // The handler runs on FrontBoardServices' own queue.
+            dispatch_async(dispatch_get_main_queue(), ^{
+                ApplyInterfaceOrientation(orientation);
+            });
+        };
+    });
+}
+
 %hook PUIDPointerShapeView
 
 - (void)setPointerShape:(PSPointerShape *)shape
@@ -205,6 +304,8 @@ static void RefreshActiveArrow(PUIDPointerShapeView *view) {
         shape.shapeType == PSPointerShapeTypeSystem;
 
     if (isSystemShape) {
+        StartObservingInterfaceOrientation();
+
         if (!objc_getAssociatedObject(self, ArrowActiveKey)) {
             id priorColor = self.shapeMaterialReplacementColor ?: NSNull.null;
             objc_setAssociatedObject(self, PreviousReplacementColorKey,
@@ -214,6 +315,7 @@ static void RefreshActiveArrow(PUIDPointerShapeView *view) {
         CGFloat scale = ArrowScaleForView(self);
         PSPointerShape *replacement = ArrowPointerShape(scale);
         if (replacement) {
+            ArrowShapeView = self;
             objc_setAssociatedObject(self, ArrowActiveKey, @YES,
                                      OBJC_ASSOCIATION_RETAIN_NONATOMIC);
             objc_setAssociatedObject(self, ArrowScaleKey, @(scale),
