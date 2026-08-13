@@ -65,15 +65,17 @@ static void *ArrowActiveKey = &ArrowActiveKey;
 static void *ArrowScaleKey = &ArrowScaleKey;
 static void *ArrowOutlineLayerKey = &ArrowOutlineLayerKey;
 static void *PreviousReplacementColorKey = &PreviousReplacementColorKey;
+static void *ArrowInterfaceOrientationKey = &ArrowInterfaceOrientationKey;
+static void *ArrowRenderedOrientationKey = &ArrowRenderedOrientationKey;
 
 // Pointer shape paths live in a coordinate space whose origin is the pointer
 // hotspot and whose axes follow the display, not the interface. The circular
 // system shape is rotation invariant, so iPadOS 17 never rotates anything; an
 // arrow has to be rotated by hand or it keeps pointing at the physical top-left
 // corner of the display in landscape.
-static UIInterfaceOrientation ArrowInterfaceOrientation = UIInterfaceOrientationPortrait;
+static UIInterfaceOrientation ArrowFallbackInterfaceOrientation = UIInterfaceOrientationPortrait;
 static FBSOrientationObserver *ArrowOrientationObserver = nil;
-static __weak PUIDPointerShapeView *ArrowShapeView = nil;
+static NSHashTable<PUIDPointerShapeView *> *ArrowShapeViews = nil;
 
 // libAccessibility returns the pointer multiplier as a 32-bit float on
 // arm64. Declaring this as CGFloat (double) makes valid values look invalid.
@@ -121,7 +123,25 @@ static CGFloat ArrowRotationForInterfaceOrientation(UIInterfaceOrientation orien
     }
 }
 
-static CGPathRef CreateArrowCursorPath(CGFloat scale) {
+static UIInterfaceOrientation InterfaceOrientationForView(
+    PUIDPointerShapeView *view) {
+    UIScreen *screen = view.window.screen;
+    if (screen && screen != UIScreen.mainScreen) {
+        // External-display pointer geometry is already expressed in that
+        // display's landscape-oriented coordinate space. Applying the iPad's
+        // physical-panel correction here rotates the arrow a second time.
+        return UIInterfaceOrientationPortrait;
+    }
+
+    NSNumber *orientation = objc_getAssociatedObject(
+        view, ArrowInterfaceOrientationKey);
+    return orientation
+        ? (UIInterfaceOrientation)orientation.integerValue
+        : ArrowFallbackInterfaceOrientation;
+}
+
+static CGPathRef CreateArrowCursorPath(
+    CGFloat scale, UIInterfaceOrientation orientation) {
     CGMutablePathRef path = CGPathCreateMutable();
 
     // Geometry traced from macOS's NSCursor.arrow. (0, 0) remains the click
@@ -135,7 +155,7 @@ static CGPathRef CreateArrowCursorPath(CGFloat scale) {
     CGPathAddLineToPoint(path, NULL, 11.6 * scale, 11.7 * scale);
     CGPathCloseSubpath(path);
 
-    CGFloat angle = ArrowRotationForInterfaceOrientation(ArrowInterfaceOrientation);
+    CGFloat angle = ArrowRotationForInterfaceOrientation(orientation);
     if (angle == 0.0) {
         return path;
     }
@@ -158,14 +178,15 @@ static CGFloat ArrowScaleForView(PUIDPointerShapeView *view) {
     return ArrowBaseScale * AccessibilityPointerSizeMultiplier() * zoomScale;
 }
 
-static PSPointerShape *ArrowPointerShape(CGFloat scale) {
+static PSPointerShape *ArrowPointerShape(
+    CGFloat scale, UIInterfaceOrientation orientation) {
     Class shapeClass = NSClassFromString(@"PSPointerShape");
     if (!shapeClass ||
         ![shapeClass respondsToSelector:@selector(customShapeWithPath:)]) {
         return nil;
     }
 
-    CGPathRef path = CreateArrowCursorPath(scale);
+    CGPathRef path = CreateArrowCursorPath(scale, orientation);
     PSPointerShape *shape = [shapeClass customShapeWithPath:path];
     CGPathRelease(path);
     return shape;
@@ -182,7 +203,6 @@ static CAShapeLayer *ArrowOutlineLayer(PUIDPointerShapeView *view) {
         layer.lineCap = kCALineCapSquare;
         layer.miterLimit = 8.0;
         layer.zPosition = 1000.0;
-        layer.contentsScale = UIScreen.mainScreen.scale;
         [view.layer addSublayer:layer];
         objc_setAssociatedObject(view, ArrowOutlineLayerKey, layer,
                                  OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -198,7 +218,10 @@ static void UpdateArrowOutline(PUIDPointerShapeView *view) {
 
     CGFloat scale = scaleNumber.doubleValue;
     CAShapeLayer *layer = ArrowOutlineLayer(view);
-    CGPathRef path = CreateArrowCursorPath(scale);
+    UIScreen *screen = view.window.screen;
+    layer.contentsScale = screen ? screen.scale : UIScreen.mainScreen.scale;
+    CGPathRef path = CreateArrowCursorPath(
+        scale, InterfaceOrientationForView(view));
     layer.frame = view.bounds;
     layer.path = path;
     layer.lineWidth = MAX(1.25, scale);
@@ -244,6 +267,24 @@ static void RefreshActiveArrow(PUIDPointerShapeView *view) {
     }
 }
 
+static NSHashTable<PUIDPointerShapeView *> *ActiveArrowShapeViews(void) {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        ArrowShapeViews = [NSHashTable weakObjectsHashTable];
+    });
+    return ArrowShapeViews;
+}
+
+static void RefreshArrowsUsingFallbackOrientation(void) {
+    for (PUIDPointerShapeView *view in ActiveArrowShapeViews().allObjects) {
+        // A display-specific update is authoritative. The global observer is
+        // only a compatibility fallback for views that have not received one.
+        if (!objc_getAssociatedObject(view, ArrowInterfaceOrientationKey)) {
+            RefreshActiveArrow(view);
+        }
+    }
+}
+
 static BOOL IsSupportedInterfaceOrientation(NSInteger orientation) {
     switch (orientation) {
         case UIInterfaceOrientationPortrait:
@@ -256,15 +297,13 @@ static BOOL IsSupportedInterfaceOrientation(NSInteger orientation) {
     }
 }
 
-static void ApplyInterfaceOrientation(NSInteger orientation) {
+static void ApplyFallbackInterfaceOrientation(NSInteger orientation) {
     if (!IsSupportedInterfaceOrientation(orientation) ||
-        orientation == ArrowInterfaceOrientation) {
+        orientation == ArrowFallbackInterfaceOrientation) {
         return;
     }
-    ArrowInterfaceOrientation = (UIInterfaceOrientation)orientation;
-    // Re-sending the system shape rebuilds the rotated path through the hook
-    // below, which also repositions the outline layer.
-    RefreshActiveArrow(ArrowShapeView);
+    ArrowFallbackInterfaceOrientation = (UIInterfaceOrientation)orientation;
+    RefreshArrowsUsingFallbackOrientation();
 }
 
 static void StartObservingInterfaceOrientation(void) {
@@ -280,7 +319,8 @@ static void StartObservingInterfaceOrientation(void) {
                 respondsToSelector:@selector(activeInterfaceOrientation)]) {
             NSInteger current = [ArrowOrientationObserver activeInterfaceOrientation];
             if (IsSupportedInterfaceOrientation(current)) {
-                ArrowInterfaceOrientation = (UIInterfaceOrientation)current;
+                ArrowFallbackInterfaceOrientation =
+                    (UIInterfaceOrientation)current;
             }
         }
 
@@ -288,7 +328,7 @@ static void StartObservingInterfaceOrientation(void) {
             NSInteger orientation = update.orientation;
             // The handler runs on FrontBoardServices' own queue.
             dispatch_async(dispatch_get_main_queue(), ^{
-                ApplyInterfaceOrientation(orientation);
+                ApplyFallbackInterfaceOrientation(orientation);
             });
         };
     });
@@ -313,12 +353,18 @@ static void StartObservingInterfaceOrientation(void) {
         }
 
         CGFloat scale = ArrowScaleForView(self);
-        PSPointerShape *replacement = ArrowPointerShape(scale);
+        PSPointerShape *replacement = ArrowPointerShape(
+            scale, InterfaceOrientationForView(self));
         if (replacement) {
-            ArrowShapeView = self;
+            UIInterfaceOrientation renderedOrientation =
+                InterfaceOrientationForView(self);
+            [ActiveArrowShapeViews() addObject:self];
             objc_setAssociatedObject(self, ArrowActiveKey, @YES,
                                      OBJC_ASSOCIATION_RETAIN_NONATOMIC);
             objc_setAssociatedObject(self, ArrowScaleKey, @(scale),
+                                     OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            objc_setAssociatedObject(self, ArrowRenderedOrientationKey,
+                                     @(renderedOrientation),
                                      OBJC_ASSOCIATION_RETAIN_NONATOMIC);
             %orig(replacement, animated, completion);
             self.shapeMaterialReplacementColor = UIColor.blackColor;
@@ -336,15 +382,54 @@ static void StartObservingInterfaceOrientation(void) {
                                  OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         objc_setAssociatedObject(self, PreviousReplacementColorKey, nil,
                                  OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(self, ArrowRenderedOrientationKey, nil,
+                                 OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         RemoveArrowOutline(self);
+        [ActiveArrowShapeViews() removeObject:self];
     }
 
     %orig(shape, animated, completion);
 }
 
+- (void)_didUpdateToOrientation:(NSInteger)orientation
+                       duration:(double)duration
+              rotationDirection:(NSInteger)rotationDirection {
+    %orig;
+    if (!IsSupportedInterfaceOrientation(orientation)) {
+        return;
+    }
+
+    // pointeruid owns one shape view per display context. Keeping this value
+    // on the view prevents the built-in iPad and an external display from
+    // overwriting each other's orientation.
+    void (^applyOrientation)(void) = ^{
+        objc_setAssociatedObject(self, ArrowInterfaceOrientationKey,
+                                 @(orientation),
+                                 OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        RefreshActiveArrow(self);
+    };
+    if (NSThread.isMainThread) {
+        applyOrientation();
+    } else {
+        dispatch_async(dispatch_get_main_queue(), applyOrientation);
+    }
+}
+
 - (void)layoutSubviews {
     %orig;
     if (objc_getAssociatedObject(self, ArrowActiveKey)) {
+        UIInterfaceOrientation effectiveOrientation =
+            InterfaceOrientationForView(self);
+        NSNumber *renderedOrientation = objc_getAssociatedObject(
+            self, ArrowRenderedOrientationKey);
+        if (!renderedOrientation ||
+            renderedOrientation.integerValue != effectiveOrientation) {
+            // A newly attached external-display view may not have a window
+            // during its first shape update. Rebuild once its UIScreen is
+            // known so both the fill and outline use the display coordinates.
+            RefreshActiveArrow(self);
+            return;
+        }
         UpdateArrowOutline(self);
     }
 }
