@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2 (Revamped) - 2026-10-19
+
+- Après installation, mise à jour ou suppression, Sileo (ou Zebra) propose un
+  redémarrage partiel (userspace reboot), comme ElleKit : `postinst` et `postrm`
+  envoient `finish:usreboot` au gestionnaire de paquets.
+
 ## 0.3.1 (Revamped) - 2026-10-19
 
 - Flèche 15 % plus grande (échelle ×1,15, environ 17 pt de haut) : à la

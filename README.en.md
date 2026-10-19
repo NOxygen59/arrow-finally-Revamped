@@ -45,7 +45,7 @@ Add the source:
 https://noxygen59.github.io/sileo-repo/
 ```
 
-or open [sileo://source/https://noxygen59.github.io/sileo-repo/](sileo://source/https://noxygen59.github.io/sileo-repo/) on the iPad. Then install **Arrow, Finally. Revamped**. Updates show up in Sileo on their own.
+or open [sileo://source/https://noxygen59.github.io/sileo-repo/](sileo://source/https://noxygen59.github.io/sileo-repo/) on the iPad. Then install **Arrow, Finally. Revamped** and accept the **userspace reboot** Sileo offers at the end. Updates show up in Sileo on their own.
 
 ### By hand
 
@@ -91,6 +91,7 @@ scripts/publish.sh                                   # builds, then publishes to
 
 | Revamped | Based on | What's new |
 |---|---|---|
+| 0.3.2 | Arrow, Finally. 0.2.7 | Sileo offers a userspace reboot after installing, as ElleKit does |
 | 0.3.1 | Arrow, Finally. 0.2.7 | Arrow 15% larger (×1.15) |
 | 0.3.0 | Arrow, Finally. 0.2.7 | macOS 26/27 arrow, Mac size, outside border, shadow, iOS 16 |
 

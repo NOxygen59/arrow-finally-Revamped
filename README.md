@@ -45,7 +45,7 @@ Ajouter la source :
 https://noxygen59.github.io/sileo-repo/
 ```
 
-ou ouvrir [sileo://source/https://noxygen59.github.io/sileo-repo/](sileo://source/https://noxygen59.github.io/sileo-repo/) depuis l'iPad. Installer ensuite **Arrow, Finally. Revamped**. Les mises à jour arrivent toutes seules dans Sileo.
+ou ouvrir [sileo://source/https://noxygen59.github.io/sileo-repo/](sileo://source/https://noxygen59.github.io/sileo-repo/) depuis l'iPad. Installer ensuite **Arrow, Finally. Revamped**, puis accepter le **redémarrage partiel** que Sileo propose à la fin. Les mises à jour arrivent toutes seules dans Sileo.
 
 ### À la main
 
@@ -91,6 +91,7 @@ scripts/publish.sh                                   # compile, et publie dans l
 
 | Revamped | Basé sur | Contenu |
 |---|---|---|
+| 0.3.2 | Arrow, Finally. 0.2.7 | Sileo propose le redémarrage partiel après installation, comme ElleKit |
 | 0.3.1 | Arrow, Finally. 0.2.7 | Flèche 15 % plus grande (×1,15) |
 | 0.3.0 | Arrow, Finally. 0.2.7 | Flèche de macOS 26/27, taille du Mac, contour extérieur, ombre, iOS 16 |
 

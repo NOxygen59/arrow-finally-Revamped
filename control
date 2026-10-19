@@ -1,6 +1,6 @@
 Package: com.andyching.ipadarrowcursor
 Name: Arrow, Finally. Revamped
-Version: 0.3.1
+Version: 0.3.2
 Architecture: iphoneos-arm
 Description: The macOS 26/27 arrow cursor, at the Mac's size, for jailbroken iPadOS 16 and 17, keeping native hover shapes.
 Maintainer: NOxygen59
