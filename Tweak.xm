@@ -1,3 +1,4 @@
+#import <notify.h>
 #import <CoreGraphics/CoreGraphics.h>
 #import <Foundation/Foundation.h>
 #import <QuartzCore/QuartzCore.h>
@@ -25,6 +26,8 @@
 
 @interface PUIDPointerState : NSObject
 @property (nonatomic, readonly, getter=isPointerAutoHidden) BOOL pointerAutoHidden;
+@property (nonatomic, readonly) CGPoint modelPointerReferencePosition;
+@property (nonatomic, readonly) double shakeToFindPointerSizeMultiplier;
 @end
 
 @interface PUIDPointerRenderingRootViewController : UIViewController
@@ -59,10 +62,24 @@ updateHandlerCollection:(id)updateHandlerCollection
 @end
 
 static const NSInteger PSPointerShapeTypeSystem = 1;
+// Settings (Réglages › Arrow, Finally. Revamped), read at launch and whenever the
+// settings page posts ArrowPrefsChanged; pointeruid runs as mobile, like Settings.
+static NSString *const ArrowPrefsDomain = @"com.andyching.ipadarrowcursor";
+static const char *const ArrowPrefsChanged = "com.andyching.ipadarrowcursor/reload";
+static BOOL ArrowEnabled = YES;
 // 1.0 = the arrow's size on a Mac, in points (an iPad Pro point is about as big
-// on screen as a Mac's: ~132 vs ~127 points per inch). Slightly larger on the
-// iPad, whose screen is seen from further away than a laptop's: 1.15.
-static const CGFloat ArrowBaseScale = 1.15;
+// on screen as a Mac's: ~132 vs ~127 points per inch). Default slightly larger
+// on the iPad, whose screen is seen from further away than a laptop's.
+static const CGFloat ArrowDefaultScale = 1.15;
+static CGFloat ArrowUserScale = ArrowDefaultScale;
+static BOOL ArrowShadowEnabled = YES;
+static BOOL ArrowShakeToLocate = YES;
+static BOOL ArrowHideWhileTyping = YES;
+
+// Shake to locate, as on macOS: a quick back-and-forth of the pointer makes the
+// arrow grow until the shaking stops. ArrowLocateBoost multiplies the scale.
+static CGFloat ArrowLocateBoost = 1.0;
+static const CGFloat ArrowLocateMaxBoost = 3.0;
 // The white border around the black arrow, outside the arrow, as on macOS.
 static const CGFloat ArrowOutlineWidth = 1.0;
 
@@ -72,6 +89,7 @@ static void *ArrowOutlineLayerKey = &ArrowOutlineLayerKey;
 static void *PreviousReplacementColorKey = &PreviousReplacementColorKey;
 static void *ArrowInterfaceOrientationKey = &ArrowInterfaceOrientationKey;
 static void *ArrowRenderedOrientationKey = &ArrowRenderedOrientationKey;
+static void *ArrowLastShapeWasSystemKey = &ArrowLastShapeWasSystemKey;
 
 // Pointer shape paths live in a coordinate space whose origin is the pointer
 // hotspot and whose axes follow the display, not the interface. The circular
@@ -81,6 +99,9 @@ static void *ArrowRenderedOrientationKey = &ArrowRenderedOrientationKey;
 static UIInterfaceOrientation ArrowFallbackInterfaceOrientation = UIInterfaceOrientationPortrait;
 static FBSOrientationObserver *ArrowOrientationObserver = nil;
 static NSHashTable<PUIDPointerShapeView *> *ArrowShapeViews = nil;
+// Every shape view that last showed the system shape (enabled or not), so turning
+// the arrow back on applies at once.
+static NSHashTable<PUIDPointerShapeView *> *ArrowSystemShapeViews = nil;
 
 // libAccessibility returns the pointer multiplier as a 32-bit float on
 // arm64. Declaring this as CGFloat (double) makes valid values look invalid.
@@ -202,7 +223,7 @@ static CGFloat ArrowScaleForView(PUIDPointerShapeView *view) {
     if (!isfinite(zoomScale) || zoomScale <= 0.0) {
         zoomScale = 1.0;
     }
-    return ArrowBaseScale * AccessibilityPointerSizeMultiplier() * zoomScale;
+    return ArrowUserScale * ArrowLocateBoost * AccessibilityPointerSizeMultiplier() * zoomScale;
 }
 
 static PSPointerShape *ArrowPointerShape(
@@ -233,7 +254,6 @@ static CAShapeLayer *ArrowOutlineLayer(PUIDPointerShapeView *view) {
         layer.lineCap = kCALineCapRound;
         layer.zPosition = 1000.0;
         layer.shadowColor = UIColor.blackColor.CGColor;
-        layer.shadowOpacity = 0.35;
 
         CAShapeLayer *fill = [CAShapeLayer layer];
         fill.name = @"ArrowFinally.fill";
@@ -271,6 +291,7 @@ static void UpdateArrowOutline(PUIDPointerShapeView *view) {
     CGFloat drop = 0.7 * scale;
     layer.shadowOffset = CGSizeMake(-sin(angle) * drop, cos(angle) * drop);
     layer.shadowRadius = 1.2 * scale;
+    layer.shadowOpacity = ArrowShadowEnabled ? 0.35 : 0.0;
 
     CAShapeLayer *fill = (CAShapeLayer *)layer.sublayers.firstObject;
     fill.contentsScale = contentsScale;
@@ -336,6 +357,132 @@ static void RefreshArrowsUsingFallbackOrientation(void) {
     }
 }
 
+static NSHashTable<PUIDPointerShapeView *> *SystemShapeViews(void) {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        ArrowSystemShapeViews = [NSHashTable weakObjectsHashTable];
+    });
+    return ArrowSystemShapeViews;
+}
+
+/// Asks every view that shows the system shape for it again, so the arrow (or
+/// the native circle, when turned off) is rebuilt with the current settings.
+static void RefreshAllArrows(void) {
+    Class shapeClass = NSClassFromString(@"PSPointerShape");
+    if (![shapeClass respondsToSelector:@selector(systemShape)]) {
+        return;
+    }
+    PSPointerShape *systemShape = [shapeClass systemShape];
+    for (PUIDPointerShapeView *view in SystemShapeViews().allObjects) {
+        [view setPointerShape:systemShape animated:NO completion:nil];
+    }
+}
+
+static BOOL PreferenceBool(NSString *key, BOOL fallback) {
+    id value = CFBridgingRelease(CFPreferencesCopyAppValue(
+        (__bridge CFStringRef)key, (__bridge CFStringRef)ArrowPrefsDomain));
+    return [value respondsToSelector:@selector(boolValue)] ? [value boolValue] : fallback;
+}
+
+static void LoadPreferences(void) {
+    CFPreferencesAppSynchronize((__bridge CFStringRef)ArrowPrefsDomain);
+    ArrowEnabled = PreferenceBool(@"enabled", YES);
+    ArrowShadowEnabled = PreferenceBool(@"shadow", YES);
+    ArrowShakeToLocate = PreferenceBool(@"shakeToLocate", YES);
+    ArrowHideWhileTyping = PreferenceBool(@"hideWhileTyping", YES);
+    id size = CFBridgingRelease(CFPreferencesCopyAppValue(
+        CFSTR("size"), (__bridge CFStringRef)ArrowPrefsDomain));
+    CGFloat scale = [size respondsToSelector:@selector(doubleValue)]
+        ? [size doubleValue] : ArrowDefaultScale;
+    ArrowUserScale = isfinite(scale) ? MIN(MAX(scale, 0.6), 2.5) : ArrowDefaultScale;
+}
+
+// MARK: Shake to locate
+
+static CADisplayLink *ArrowLocateLink = nil;
+static CFTimeInterval ArrowLastShake = 0.0;
+
+@interface ArrowLocateTicker : NSObject
+@end
+
+@implementation ArrowLocateTicker
+- (void)tick:(CADisplayLink *)link {
+    // Grow while shaking, shrink back half a second after it stops.
+    BOOL shaking = CACurrentMediaTime() - ArrowLastShake < 0.5;
+    CGFloat target = shaking ? ArrowLocateMaxBoost : 1.0;
+    CGFloat step = MIN(1.0, link.duration * (shaking ? 12.0 : 7.0));
+    CGFloat next = ArrowLocateBoost + (target - ArrowLocateBoost) * step;
+    if (!shaking && next < 1.01) {
+        next = 1.0;
+        [ArrowLocateLink invalidate];
+        ArrowLocateLink = nil;
+    }
+    if (fabs(next - ArrowLocateBoost) < 0.001) {
+        return;
+    }
+    ArrowLocateBoost = next;
+    for (PUIDPointerShapeView *view in ActiveArrowShapeViews().allObjects) {
+        RefreshActiveArrow(view);
+    }
+}
+@end
+
+/// Feeds the pointer's position; four quick changes of horizontal direction
+/// within 0.8 s, each after at least 30 pt of travel, count as a shake.
+static void TrackPointerForShake(CGPoint position) {
+    static CGPoint last;
+    static BOOL hasLast = NO;
+    static int direction = 0;
+    static CGFloat travel = 0.0;
+    static CFTimeInterval reversals[6];
+    static int count = 0;
+
+    if (!ArrowShakeToLocate || !isfinite(position.x) || !isfinite(position.y)) {
+        hasLast = NO;
+        return;
+    }
+    if (!hasLast) {
+        last = position;
+        hasLast = YES;
+        return;
+    }
+    CGFloat dx = position.x - last.x;
+    last = position;
+    if (fabs(dx) < 1.0) {
+        return;
+    }
+    int now = dx > 0 ? 1 : -1;
+    if (now == direction) {
+        travel += fabs(dx);
+        return;
+    }
+    CFTimeInterval t = CACurrentMediaTime();
+    if (direction != 0 && travel >= 30.0) {
+        reversals[count % 6] = t;
+        count++;
+    }
+    direction = now;
+    travel = fabs(dx);
+
+    int recent = 0;
+    for (int i = 0; i < MIN(count, 6); i++) {
+        if (t - reversals[i] < 0.8) {
+            recent++;
+        }
+    }
+    if (recent >= 4) {
+        ArrowLastShake = t;
+        if (!ArrowLocateLink) {
+            static ArrowLocateTicker *ticker;
+            ticker = [ArrowLocateTicker new];
+            ArrowLocateLink = [CADisplayLink displayLinkWithTarget:ticker
+                                                          selector:@selector(tick:)];
+            [ArrowLocateLink addToRunLoop:NSRunLoop.mainRunLoop
+                                  forMode:NSRunLoopCommonModes];
+        }
+    }
+}
+
 static BOOL IsSupportedInterfaceOrientation(NSInteger orientation) {
     switch (orientation) {
         case UIInterfaceOrientationPortrait:
@@ -393,8 +540,13 @@ static void StartObservingInterfaceOrientation(void) {
     BOOL isSystemShape = shape &&
         [shape respondsToSelector:@selector(shapeType)] &&
         shape.shapeType == PSPointerShapeTypeSystem;
-
     if (isSystemShape) {
+        [SystemShapeViews() addObject:self];
+    } else {
+        [SystemShapeViews() removeObject:self];
+    }
+
+    if (isSystemShape && ArrowEnabled) {
         StartObservingInterfaceOrientation();
 
         if (!objc_getAssociatedObject(self, ArrowActiveKey)) {
@@ -508,9 +660,28 @@ updateHandlerCollection:(id)updateHandlerCollection
         // iPadOS's native auto-hide leaves a scaled, blurred pointer behind.
         // Hide the complete pointer composition only while the authoritative
         // auto-hidden state is active; normal movement clears it again.
+        // iPadOS also auto-hides the pointer on its own while you type; with
+        // "Masquer pendant la frappe" the arrow follows every such request.
         BOOL shouldFullyHide = state.isPointerAutoHidden &&
-            AccessibilityPointerAutoHideEnabled();
+            (AccessibilityPointerAutoHideEnabled() || ArrowHideWhileTyping);
         SetPointerActuallyHidden(self, shouldFullyHide);
+    }
+    // Shake to locate. iPadOS releases with their own shake-to-find put a size
+    // multiplier in the state: the arrow (a custom path, which that multiplier
+    // doesn't reach) follows it. Elsewhere the tweak detects the shake itself.
+    if (succeeded && ArrowEnabled && ArrowShakeToLocate) {
+        if ([state respondsToSelector:@selector(shakeToFindPointerSizeMultiplier)]) {
+            CGFloat native = state.shakeToFindPointerSizeMultiplier;
+            native = isfinite(native) ? MIN(MAX(native, 1.0), ArrowLocateMaxBoost) : 1.0;
+            if (fabs(native - ArrowLocateBoost) > 0.01) {
+                ArrowLocateBoost = native;
+                for (PUIDPointerShapeView *view in ActiveArrowShapeViews().allObjects) {
+                    RefreshActiveArrow(view);
+                }
+            }
+        } else if ([state respondsToSelector:@selector(modelPointerReferencePosition)]) {
+            TrackPointerForShake(state.modelPointerReferencePosition);
+        }
     }
     return succeeded;
 }
@@ -548,5 +719,14 @@ updateHandlerCollection:(id)updateHandlerCollection
             return;
         }
         %init;
+
+        // Settings: read now, and again whenever the settings page changes one.
+        LoadPreferences();
+        int token;
+        notify_register_dispatch(ArrowPrefsChanged, &token, dispatch_get_main_queue(), ^(int t) {
+            (void)t;
+            LoadPreferences();
+            RefreshAllArrows();
+        });
     }
 }

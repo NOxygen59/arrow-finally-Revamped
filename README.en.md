@@ -59,7 +59,17 @@ If the cursor doesn't change, do a userspace reboot from Dopamine.
 
 ## Settings
 
-There is no settings page: everything is in **Settings › Accessibility › Pointer Control** (pointer size, automatically hide pointer).
+**Settings › Arrow, Finally.** has one option per thing the cursor does. Everything applies at once, without a reboot.
+
+| Setting | What it does | Default |
+|---|---|---|
+| **macOS arrow** | Turns the arrow on or off (iPadOS's circle comes back) | On |
+| **Size** | 0.80 to 2.00; 1.00 = the cursor's size on a Mac | 1.15 |
+| **Shadow** | Soft shadow under the arrow | On |
+| **Shake to locate** | Shaking the mouse or trackpad quickly makes the arrow grow until you find it, as on a Mac | On |
+| **Hide while typing** | The arrow disappears when iPadOS hides the pointer while you type, and comes back when the mouse moves | On |
+
+The page also links to **Accessibility › Pointer Control** (iPadOS's own size and auto-hide, which apply on top) and has a **Reset settings** button.
 
 ## Uninstall
 
@@ -85,12 +95,14 @@ scripts/publish.sh                                   # builds, then publishes to
 |---|---|
 | Identifier | `com.andyching.ipadarrowcursor` (the original's: Revamped replaces it) |
 | Target | iOS 16.0 and later, rootless, `arm64` + `arm64e` |
-| Injection | `pointeruid` only |
+| Injection | `pointeruid` only (plus the settings page in the Settings app) |
+| Dependencies | ElleKit, PreferenceLoader |
 
 ## Versions
 
 | Revamped | Based on | What's new |
 |---|---|---|
+| 0.4.0 | Arrow, Finally. 0.2.7 | Settings page, shake to locate, hide while typing, adjustable size and shadow |
 | 0.3.2 | Arrow, Finally. 0.2.7 | Sileo offers a userspace reboot after installing, as ElleKit does |
 | 0.3.1 | Arrow, Finally. 0.2.7 | Arrow 15% larger (×1.15) |
 | 0.3.0 | Arrow, Finally. 0.2.7 | macOS 26/27 arrow, Mac size, outside border, shadow, iOS 16 |

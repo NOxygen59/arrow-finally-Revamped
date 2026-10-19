@@ -59,7 +59,17 @@ Si le curseur ne change pas, faire un userspace reboot depuis Dopamine.
 
 ## Réglages
 
-Pas de page de réglages : tout passe par **Réglages › Accessibilité › Contrôle du pointeur** (taille du pointeur, masquage automatique).
+**Réglages › Arrow, Finally.** propose une option par fonction du curseur. Tout s'applique immédiatement, sans redémarrage.
+
+| Réglage | Effet | Par défaut |
+|---|---|---|
+| **Flèche macOS** | Active ou désactive la flèche (le rond d'iPadOS revient) | Activé |
+| **Taille** | De 0,80 à 2,00 ; 1,00 = la taille du curseur sur Mac | 1,15 |
+| **Ombre** | Ombre douce sous la flèche | Activé |
+| **Secouer pour localiser** | Secouer vite la souris ou le trackpad fait grossir la flèche le temps de la retrouver, comme sur Mac | Activé |
+| **Masquer pendant la frappe** | La flèche disparaît quand iPadOS masque le pointeur pendant la frappe, et revient quand la souris bouge | Activé |
+
+La page contient aussi un raccourci vers **Accessibilité › Contrôle du pointeur** (taille et masquage automatique d'iPadOS, qui s'ajoutent aux réglages du tweak) et un bouton **Réinitialiser les réglages**.
 
 ## Désinstaller
 
@@ -85,12 +95,14 @@ scripts/publish.sh                                   # compile, et publie dans l
 |---|---|
 | Identifiant | `com.andyching.ipadarrowcursor` (celui de l'original : la version Revamped le remplace) |
 | Cible | iOS 16.0 et plus, rootless, `arm64` + `arm64e` |
-| Injection | `pointeruid` seulement |
+| Injection | `pointeruid` seulement (et la page de réglages dans l'app Réglages) |
+| Dépendances | ElleKit, PreferenceLoader |
 
 ## Versions
 
 | Revamped | Basé sur | Contenu |
 |---|---|---|
+| 0.4.0 | Arrow, Finally. 0.2.7 | Page de réglages, secouer pour localiser, masquer pendant la frappe, taille et ombre réglables |
 | 0.3.2 | Arrow, Finally. 0.2.7 | Sileo propose le redémarrage partiel après installation, comme ElleKit |
 | 0.3.1 | Arrow, Finally. 0.2.7 | Flèche 15 % plus grande (×1,15) |
 | 0.3.0 | Arrow, Finally. 0.2.7 | Flèche de macOS 26/27, taille du Mac, contour extérieur, ombre, iOS 16 |

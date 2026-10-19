@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>items</key>
+	<array>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>Remplace le pointeur rond d'iPadOS par la flèche de macOS 26/27. Les formes natives restent : curseur texte, boutons, icônes. Les changements s'appliquent tout de suite, sans redémarrage.</string>
+			<key>label</key>
+			<string>Arrow, Finally. Revamped</string>
+		</dict>
+		<dict>
+			<key>PostNotification</key>
+			<string>com.andyching.ipadarrowcursor/reload</string>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<true/>
+			<key>defaults</key>
+			<string>com.andyching.ipadarrowcursor</string>
+			<key>key</key>
+			<string>enabled</string>
+			<key>label</key>
+			<string>Flèche macOS</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>1,00 = la taille du curseur sur un Mac ; 1,15 par défaut. La taille du pointeur réglée dans Accessibilité s'applique en plus.</string>
+			<key>label</key>
+			<string>Taille</string>
+		</dict>
+		<dict>
+			<key>PostNotification</key>
+			<string>com.andyching.ipadarrowcursor/reload</string>
+			<key>cell</key>
+			<string>PSSliderCell</string>
+			<key>default</key>
+			<real>1.15</real>
+			<key>defaults</key>
+			<string>com.andyching.ipadarrowcursor</string>
+			<key>key</key>
+			<string>size</string>
+			<key>max</key>
+			<real>2.0</real>
+			<key>min</key>
+			<real>0.8</real>
+			<key>showValue</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>Ombre douce sous la flèche, comme sur macOS.</string>
+			<key>label</key>
+			<string>Apparence</string>
+		</dict>
+		<dict>
+			<key>PostNotification</key>
+			<string>com.andyching.ipadarrowcursor/reload</string>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<true/>
+			<key>defaults</key>
+			<string>com.andyching.ipadarrowcursor</string>
+			<key>key</key>
+			<string>shadow</string>
+			<key>label</key>
+			<string>Ombre</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>Secouez vite la souris ou le trackpad de gauche à droite : la flèche grossit le temps de la retrouver, puis reprend sa taille, comme sur Mac.</string>
+			<key>label</key>
+			<string>Secouer pour localiser</string>
+		</dict>
+		<dict>
+			<key>PostNotification</key>
+			<string>com.andyching.ipadarrowcursor/reload</string>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<true/>
+			<key>defaults</key>
+			<string>com.andyching.ipadarrowcursor</string>
+			<key>key</key>
+			<string>shakeToLocate</string>
+			<key>label</key>
+			<string>Secouer pour localiser</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>La flèche disparaît dès qu'iPadOS masque le pointeur pendant que vous tapez au clavier, et revient quand la souris bouge. Désactivé, seul le masquage automatique d'Accessibilité la cache.</string>
+			<key>label</key>
+			<string>Masquer pendant la frappe</string>
+		</dict>
+		<dict>
+			<key>PostNotification</key>
+			<string>com.andyching.ipadarrowcursor/reload</string>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<true/>
+			<key>defaults</key>
+			<string>com.andyching.ipadarrowcursor</string>
+			<key>key</key>
+			<string>hideWhileTyping</string>
+			<key>label</key>
+			<string>Masquer pendant la frappe</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>Taille du pointeur, contraste et masquage automatique d'iPadOS : Accessibilité › Contrôle du pointeur.</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>openPointerControl</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>Ouvrir Contrôle du pointeur</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>resetSettings</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>isDestructive</key>
+			<true/>
+			<key>label</key>
+			<string>Réinitialiser les réglages</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>Arrow, Finally. Revamped, fork d'Arrow, Finally. (Andy Ching, MIT) — github.com/NOxygen59/arrow-finally-Revamped</string>
+		</dict>
+	</array>
+	<key>title</key>
+	<string>Arrow, Finally.</string>
+</dict>
+</plist>

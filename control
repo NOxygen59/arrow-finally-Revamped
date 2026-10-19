@@ -1,10 +1,10 @@
 Package: com.andyching.ipadarrowcursor
 Name: Arrow, Finally. Revamped
-Version: 0.3.2
+Version: 0.4.0
 Architecture: iphoneos-arm
 Description: The macOS 26/27 arrow cursor, at the Mac's size, for jailbroken iPadOS 16 and 17, keeping native hover shapes.
 Maintainer: NOxygen59
 Author: Andy Ching, NOxygen59
 Section: Tweaks
-Depends: firmware (>= 16.0), ellekit
+Depends: firmware (>= 16.0), ellekit, preferenceloader
 Homepage: https://github.com/NOxygen59/arrow-finally-Revamped

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.0 (Revamped) - 2026-10-19
+
+- **Page de réglages** (Réglages › Arrow, Finally.), une option par fonction
+  du curseur, appliquée tout de suite (notification Darwin vers pointeruid) :
+  flèche macOS on/off, taille de 0,80 à 2,00 (1,15 par défaut), ombre, secouer
+  pour localiser, masquer pendant la frappe, raccourci vers Contrôle du
+  pointeur et réinitialisation.
+- **Secouer pour localiser** : quatre changements de direction rapides en
+  0,8 s font grossir la flèche jusqu'à ×3, puis elle reprend sa taille. Sur
+  les iPadOS qui ont leur propre « secouer pour trouver », la flèche suit le
+  multiplicateur du système.
+- **Masquer pendant la frappe** : la flèche suit aussi les masquages demandés
+  par iPadOS (frappe au clavier), plus seulement le masquage automatique
+  d'Accessibilité.
+- Dépend de PreferenceLoader ; compilé avec le SDK iOS 16.5.
+
 ## 0.3.2 (Revamped) - 2026-10-19
 
 - Après installation, mise à jour ou suppression, Sileo (ou Zebra) propose un
