@@ -60,8 +60,9 @@ updateHandlerCollection:(id)updateHandlerCollection
 
 static const NSInteger PSPointerShapeTypeSystem = 1;
 // 1.0 = the arrow's size on a Mac, in points (an iPad Pro point is about as big
-// on screen as a Mac's: ~132 vs ~127 points per inch).
-static const CGFloat ArrowBaseScale = 1.0;
+// on screen as a Mac's: ~132 vs ~127 points per inch). Slightly larger on the
+// iPad, whose screen is seen from further away than a laptop's: 1.15.
+static const CGFloat ArrowBaseScale = 1.15;
 // The white border around the black arrow, outside the arrow, as on macOS.
 static const CGFloat ArrowOutlineWidth = 1.0;
 

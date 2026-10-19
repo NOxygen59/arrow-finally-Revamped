@@ -20,18 +20,18 @@ The tweak is injected into `pointeruid` only, not into apps or system files.
 | | Arrow, Finally. (original) | Revamped |
 |---|---|---|
 | **Arrow** | Shape of the older macOS cursor, sharp corners | Shape of **macOS 26/27**, measured on a Mac: stubbier, rounded corners |
-| **Size** | ×1.40, about 26 pt tall | **×1.0, the Mac's size**, about 15 pt tall including the border |
+| **Size** | ×1.40, about 26 pt tall | **×1.15, a little larger than on a Mac**, about 17 pt tall including the border |
 | **Border** | White, straddling the edge (covers part of the black) | White, **outside** the arrow, 1 pt, as on macOS |
 | **Shadow** | None | **Soft shadow**, always toward the bottom of the interface, landscape included |
 | **Minimum iOS** | iPadOS 17 | **iPadOS 16** (tested on 16.6.1) |
 
-On size: an iPad Pro point is about as large on screen as a Mac point (roughly 132 vs 127 points per inch), so the arrow has the same physical size as on a MacBook. iPadOS's Pointer Size setting still applies on top.
+On size: an iPad Pro point is about as large on screen as a Mac point (roughly 132 vs 127 points per inch), so at ×1.0 the arrow would have the same physical size as on a MacBook; it is 15% larger, since an iPad is seen from further away. iPadOS's Pointer Size setting still applies on top.
 
 Apple's artwork isn't copied: the shape is redrawn as vectors from measurements of the cursor as a Mac renders it (macOS's images can't be redistributed).
 
 ## Compatibility
 
-- **The original 0.2.7 works** on a 12.9" iPad Pro (M1), iPadOS 16.6.1, Dopamine rootless, ElleKit: installing and rebooting was all it took. This Revamped version isn't tested on the iPad yet.
+- **The original 0.2.7 works** on a 12.9" iPad Pro (M1), iPadOS 16.6.1, Dopamine rootless, ElleKit: installing and rebooting was all it took. Revamped 0.3.0 is confirmed working on this iPad.
 - **Tested by the original author (version 0.2.7):** iPad mini 6, iPadOS 17.0.
 - **Declared minimum:** iPadOS 16.0. Other versions are untested.
 
@@ -91,6 +91,7 @@ scripts/publish.sh                                   # builds, then publishes to
 
 | Revamped | Based on | What's new |
 |---|---|---|
+| 0.3.1 | Arrow, Finally. 0.2.7 | Arrow 15% larger (×1.15) |
 | 0.3.0 | Arrow, Finally. 0.2.7 | macOS 26/27 arrow, Mac size, outside border, shadow, iOS 16 |
 
 The original author's technical notes are in [RESEARCH.md](RESEARCH.md) (in Chinese).

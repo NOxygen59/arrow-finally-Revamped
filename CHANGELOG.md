@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1 (Revamped) - 2026-10-19
+
+- Flèche 15 % plus grande (échelle ×1,15, environ 17 pt de haut) : à la
+  taille exacte du Mac, elle paraissait un peu petite sur l'iPad 12,9".
+
 ## 0.3.0 (Revamped) - 2026-10-19
 
 Fork par NOxygen59, modifications écrites par Claude.

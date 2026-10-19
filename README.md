@@ -20,18 +20,18 @@ Le tweak n'est injecté que dans `pointeruid`, ni dans les apps ni dans les fich
 | | Arrow, Finally. (original) | Revamped |
 |---|---|---|
 | **Flèche** | Forme de l'ancien curseur macOS, coins vifs | Forme de **macOS 26/27**, mesurée sur un Mac : plus trapue, coins arrondis |
-| **Taille** | ×1,40, environ 26 pt de haut | **×1,0, la taille du Mac**, environ 15 pt de haut, contour compris |
+| **Taille** | ×1,40, environ 26 pt de haut | **×1,15, un peu plus que sur Mac**, environ 17 pt de haut, contour compris |
 | **Contour** | Blanc, à cheval sur le bord (mange le noir) | Blanc, **à l'extérieur** de la flèche, 1 pt, comme sur macOS |
 | **Ombre** | Aucune | **Ombre douce**, toujours vers le bas de l'interface, même en paysage |
 | **iOS minimum** | iPadOS 17 | **iPadOS 16** (testé sur 16.6.1) |
 
-Pour la taille, un point d'iPad Pro est presque aussi grand à l'écran qu'un point de Mac (environ 132 contre 127 points par pouce). La flèche a donc la même taille physique que sur un MacBook. Le réglage « Taille du pointeur » d'iPadOS s'applique toujours par-dessus.
+Pour la taille, un point d'iPad Pro est presque aussi grand à l'écran qu'un point de Mac (environ 132 contre 127 points par pouce). À ×1,0 la flèche aurait la même taille physique que sur un MacBook ; elle est 15 % plus grande, car on regarde l'iPad de plus loin. Le réglage « Taille du pointeur » d'iPadOS s'applique toujours par-dessus.
 
 Le dessin d'Apple n'est pas copié : la forme est redessinée en vecteurs à partir de mesures du curseur affiché sur un Mac (les images de macOS ne sont pas redistribuables).
 
 ## Compatibilité
 
-- **L'original 0.2.7 marche** sur iPad Pro 12,9" (M1), iPadOS 16.6.1, Dopamine rootless, ElleKit : il a suffi de l'installer puis de redémarrer. Cette version Revamped n'est pas encore testée sur l'iPad.
+- **L'original 0.2.7 marche** sur iPad Pro 12,9" (M1), iPadOS 16.6.1, Dopamine rootless, ElleKit : il a suffi de l'installer puis de redémarrer. Revamped 0.3.0 est validé sur cet iPad.
 - **Testé par l'auteur d'origine (version 0.2.7) :** iPad mini 6, iPadOS 17.0.
 - **Minimum déclaré :** iPadOS 16.0. Les autres versions ne sont pas testées.
 
@@ -91,6 +91,7 @@ scripts/publish.sh                                   # compile, et publie dans l
 
 | Revamped | Basé sur | Contenu |
 |---|---|---|
+| 0.3.1 | Arrow, Finally. 0.2.7 | Flèche 15 % plus grande (×1,15) |
 | 0.3.0 | Arrow, Finally. 0.2.7 | Flèche de macOS 26/27, taille du Mac, contour extérieur, ombre, iOS 16 |
 
 L'analyse technique de l'auteur d'origine est dans [RESEARCH.md](RESEARCH.md) (en chinois).
