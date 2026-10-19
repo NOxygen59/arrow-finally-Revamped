@@ -1,135 +1,96 @@
-# Arrow, Finally.
+> [!WARNING]
+> **Projet personnel « vibecodé ».** Toutes les modifications de ce fork ont été écrites par **Claude** (Anthropic, via Claude Code), à la demande spécifique de [@NOxygen59](https://github.com/NOxygen59), pour **son appareil précis** :
+>
+> **iPad Pro 12,9" 5ᵉ génération (puce M1) — 512 Go de stockage, 8 Go de RAM — iOS 16.6.1, jailbreak Dopamine (rootless) + TrollStore.**
+>
+> Rien n'est testé ni prévu pour un autre appareil. Pas de support, pas de feuille de route : c'est un dépôt personnel, publié pour pouvoir reprendre le travail plus tard.
 
-把 iPadOS 17 在空白區域顯示的圓形指標，替換成接近 macOS 外觀的黑色箭頭與白色描邊。
+**Fork** de [andyching168/arrow-finally](https://github.com/andyching168/arrow-finally) par Andy Ching. **Licence :** celle d'origine, MIT (voir [LICENSE](LICENSE)). Aucune licence n'est ajoutée.
 
-此 tweak 只注入 `pointeruid`，不會注入每一個 App，也不會修改系統檔案。文字游標、按鈕吸附、App 圖示變形與 App 自訂指標會繼續使用 iPadOS 原生效果。
+[English](README.en.md) · [中文（原始說明）](README.zh-TW.md)
 
-## 功能
+# Arrow, Finally. Revamped
 
-- macOS 風格箭頭，點擊熱點位於箭頭左上角。
-- 黑色填滿與沿箭頭路徑繪製的白色描邊。
-- 箭頭會依各螢幕的介面方向旋轉（直向、橫向、上下顛倒）。
-- 支援「輔助使用 → 指標控制 → 指標大小」。
-- 支援「自動隱藏指標」，隱藏後不殘留模糊箭頭。
-- 保留文字 I-beam、控制項 hover 與 App 自訂指標。
-- Rootless 封裝，同時包含 `arm64` 與 `arm64e`。
+Remplace le pointeur rond d'iPadOS par la **flèche de macOS 26/27**, **à la taille du Mac**, sur un iPad jailbreaké. Les formes natives sont conservées : curseur texte, aimantation sur les boutons, déformation sur les icônes, pointeurs propres aux apps.
 
-## 相容性
+Le tweak n'est injecté que dans `pointeruid`, ni dans les apps ni dans les fichiers système.
 
-已實機測試：
+## Différences avec l'original
 
-- iPad mini 6（`iPad14,1`／`iPad14,2`）
-- iPadOS 17.0（`21A329`）
-- Dopamine rootless jailbreak
-- ElleKit
-- 橫向外接螢幕上的箭頭方向
+| | Arrow, Finally. (original) | Revamped |
+|---|---|---|
+| **Flèche** | Forme de l'ancien curseur macOS, coins vifs | Forme de **macOS 26/27**, mesurée sur un Mac : plus trapue, coins arrondis |
+| **Taille** | ×1,40, environ 26 pt de haut | **×1,0, la taille du Mac**, environ 15 pt de haut, contour compris |
+| **Contour** | Blanc, à cheval sur le bord (mange le noir) | Blanc, **à l'extérieur** de la flèche, 1 pt, comme sur macOS |
+| **Ombre** | Aucune | **Ombre douce**, toujours vers le bas de l'interface, même en paysage |
+| **iOS minimum** | iPadOS 17 | **iPadOS 16** (testé sur 16.6.1) |
 
-其他 iPadOS 15–17 版本具有相同的主要 private class，但尚未實機驗證。iPadOS 更新可能改變 private API，因此不保證跨版本相容。
+Pour la taille, un point d'iPad Pro est presque aussi grand à l'écran qu'un point de Mac (environ 132 contre 127 points par pouce). La flèche a donc la même taille physique que sur un MacBook. Le réglage « Taille du pointeur » d'iPadOS s'applique toujours par-dessus.
 
-## 安裝
+Le dessin d'Apple n'est pas copié : la forme est redessinée en vecteurs à partir de mesures du curseur affiché sur un Mac (les images de macOS ne sont pas redistribuables).
 
-最新版套件位於：
+## Compatibilité
+
+- **L'original 0.2.7 marche** sur iPad Pro 12,9" (M1), iPadOS 16.6.1, Dopamine rootless, ElleKit : il a suffi de l'installer puis de redémarrer. Cette version Revamped n'est pas encore testée sur l'iPad.
+- **Testé par l'auteur d'origine (version 0.2.7) :** iPad mini 6, iPadOS 17.0.
+- **Minimum déclaré :** iPadOS 16.0. Les autres versions ne sont pas testées.
+
+## Installer
+
+### Avec Sileo (recommandé)
+
+Ajouter la source :
 
 ```text
-release/com.andyching.ipadarrowcursor_0.2.7_iphoneos-arm64.deb
+https://noxygen59.github.io/sileo-repo/
 ```
 
-可以用 Sileo、Zebra 或 Filza 開啟 `.deb` 安裝，也可以複製到裝置後在 NewTerm 執行：
+ou ouvrir [sileo://source/https://noxygen59.github.io/sileo-repo/](sileo://source/https://noxygen59.github.io/sileo-repo/) depuis l'iPad. Installer ensuite **Arrow, Finally. Revamped**. Les mises à jour arrivent toutes seules dans Sileo.
+
+### À la main
+
+Prendre le `.deb` dans les [Releases](https://github.com/NOxygen59/arrow-finally-Revamped/releases), l'ouvrir avec Sileo ou Filza, puis :
 
 ```sh
-sudo dpkg -i /path/to/com.andyching.ipadarrowcursor_0.2.7_iphoneos-arm64.deb
 sudo killall pointeruid
 ```
 
-移動滑鼠後 `pointeruid` 應會自動重新啟動。若沒有恢復，請從 Dopamine 執行 userspace reboot。
+Si le curseur ne change pas, faire un userspace reboot depuis Dopamine.
 
-## 設定
+## Réglages
 
-不需要額外的偏好設定頁面。請直接使用：
+Pas de page de réglages : tout passe par **Réglages › Accessibilité › Contrôle du pointeur** (taille du pointeur, masquage automatique).
 
-```text
-設定 → 輔助使用 → 指標控制
-```
+## Désinstaller
 
-目前支援原生「指標大小」與「自動隱藏指標」設定。
-
-## 已知問題
-
-- 在「設定」內拖動指標大小滑桿時，指標可能暫時消失；停止調整並再次移動滑鼠後會恢復。這不影響儲存後的尺寸或一般使用。
-- 只有 iPad mini 6／iPadOS 17.0 經過實機驗證。
-- 這是 private API tweak；升級 iPadOS 前應先停用或移除。
-
-## 移除
-
-在套件管理器移除 **Arrow, Finally.**，或執行：
+Supprimer **Arrow, Finally. Revamped** dans Sileo, ou :
 
 ```sh
 sudo dpkg -r com.andyching.ipadarrowcursor
 sudo killall pointeruid
 ```
 
-移除後會恢復 iPadOS 原本的圓形指標，沒有系統檔案需要還原。
+## Compiler
 
-## 從原始碼編譯
-
-需求：
-
-- macOS 或 Linux
-- Theos
-- 可用的 iPhoneOS SDK
-
-在專案根目錄執行：
+Prérequis : macOS, [Theos](https://theos.dev) et un SDK iPhoneOS.
 
 ```sh
-THEOS=/path/to/theos make clean package FINALPACKAGE=1
+THEOS=~/theos make clean package FINALPACKAGE=1    # → packages/*.deb
+scripts/publish.sh                                   # compile, et publie dans la source Sileo
 ```
 
-產生的套件會位於 `packages/`。目前設定如下：
+`scripts/publish.sh` copie le `.deb` dans [NOxygen59/sileo-repo](https://github.com/NOxygen59/sileo-repo) et le pousse. GitHub y régénère l'index de la source, et Sileo voit la mise à jour.
 
-- Package ID：`com.andyching.ipadarrowcursor`
-- Target：iOS 15.0 以上
-- Scheme：rootless
-- Architectures：`arm64 arm64e`
-- Injection filter：`pointeruid`
+| | |
+|---|---|
+| Identifiant | `com.andyching.ipadarrowcursor` (celui de l'original : la version Revamped le remplace) |
+| Cible | iOS 16.0 et plus, rootless, `arm64` + `arm64e` |
+| Injection | `pointeruid` seulement |
 
-## 專案結構
+## Versions
 
-```text
-.
-├── Makefile                    Theos build 設定
-├── Tweak.xm                    tweak 實作
-├── ArrowFinally.plist          pointeruid 注入篩選器
-├── control                     Debian 套件資訊
-├── CHANGELOG.md                版本紀錄
-├── LICENSE                     MIT License
-├── RESEARCH.md                 iPadOS 17/26 指標管線研究
-└── release/
-    └── com.andyching.ipadarrowcursor_0.2.7_iphoneos-arm64.deb
-```
+| Revamped | Basé sur | Contenu |
+|---|---|---|
+| 0.3.0 | Arrow, Finally. 0.2.7 | Flèche de macOS 26/27, taille du Mac, contour extérieur, ombre, iOS 16 |
 
-## 0.2.7 發佈資訊
-
-- SHA-256：`928c2f9457844eaccf6382d5e0076a6b5eb3ebf350da0c09ae2bafc19e35f76d`
-- 套件架構：`iphoneos-arm64`
-- 內含 Mach-O 架構：`arm64 arm64e`
-- 安裝位置：`/var/jb/Library/MobileSubstrate/DynamicLibraries/`
-- 依賴：`firmware (>= 15.0), ellekit`
-
-### 發佈前已完成
-
-- Release build 成功。
-- `.deb` 結構與 rootless 安裝路徑已核對。
-- dylib 包含 `arm64`、`arm64e` 並具有 code signature。
-- iPad mini 6／iPadOS 17.0 已確認箭頭、指標大小與自動隱藏功能。
-- iPad mini 6／iPadOS 17.0 已確認直向與橫向的箭頭方向。
-- 橫向外接螢幕已實機確認不再被額外旋轉 90 度。
-
-### 發佈頁建議說明
-
-> Arrow, Finally. replaces the free-space circular pointer on jailbroken iPadOS 17 with a macOS-style arrow. It supports Accessibility pointer sizing and auto-hide while preserving native text and control hover effects. Built for rootless jailbreaks with ElleKit.
-
-技術分析與實作依據請參閱 [RESEARCH.md](RESEARCH.md)。
-
-## License
-
-[MIT](LICENSE) © 2026 Andy Ching
+L'analyse technique de l'auteur d'origine est dans [RESEARCH.md](RESEARCH.md) (en chinois).

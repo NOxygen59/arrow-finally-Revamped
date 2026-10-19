@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0 (Revamped) - 2026-10-19
+
+Fork par NOxygen59, modifications écrites par Claude.
+
+- La flèche de **macOS 26/27** : forme mesurée sur un Mac (plus trapue, coins
+  arrondis), à la place de celle de l'ancien macOS.
+- **Taille du Mac** : échelle ×1,0 au lieu de ×1,40 (environ 15 pt de haut
+  au lieu de 26).
+- Contour blanc de 1 pt **à l'extérieur** de la flèche noire, comme sur macOS,
+  et **ombre douce** orientée vers le bas de l'interface.
+- iPadOS **16** minimum (`firmware (>= 16.0)`, cible Theos 16.0) : l'original
+  fonctionne déjà sur iPadOS 16.6.1.
+- README en français et en anglais ; l'original chinois est dans
+  README.zh-TW.md.
+
 ## 0.2.7 - 2026-08-13
 
 - 修正 0.2.6 在橫向外接螢幕多旋轉 90 度的問題。外接 display 的 pointer

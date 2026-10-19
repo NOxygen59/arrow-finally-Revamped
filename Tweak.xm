@@ -59,7 +59,11 @@ updateHandlerCollection:(id)updateHandlerCollection
 @end
 
 static const NSInteger PSPointerShapeTypeSystem = 1;
-static const CGFloat ArrowBaseScale = 1.40;
+// 1.0 = the arrow's size on a Mac, in points (an iPad Pro point is about as big
+// on screen as a Mac's: ~132 vs ~127 points per inch).
+static const CGFloat ArrowBaseScale = 1.0;
+// The white border around the black arrow, outside the arrow, as on macOS.
+static const CGFloat ArrowOutlineWidth = 1.0;
 
 static void *ArrowActiveKey = &ArrowActiveKey;
 static void *ArrowScaleKey = &ArrowScaleKey;
@@ -140,20 +144,42 @@ static UIInterfaceOrientation InterfaceOrientationForView(
         : ArrowFallbackInterfaceOrientation;
 }
 
+// A polygon with each corner rounded by its own radius (CGPathAddArcToPoint).
+static void AddRoundedPolygon(CGMutablePathRef path, const CGPoint *points,
+                              const CGFloat *radii, size_t count) {
+    const CGPoint first = points[0];
+    const CGPoint last = points[count - 1];
+    CGPathMoveToPoint(path, NULL, (first.x + last.x) / 2.0, (first.y + last.y) / 2.0);
+    for (size_t i = 0; i < count; i++) {
+        const CGPoint corner = points[i];
+        const CGPoint next = points[(i + 1) % count];
+        CGPathAddArcToPoint(path, NULL, corner.x, corner.y, next.x, next.y, radii[i]);
+    }
+    CGPathCloseSubpath(path);
+}
+
 static CGPathRef CreateArrowCursorPath(
     CGFloat scale, UIInterfaceOrientation orientation) {
     CGMutablePathRef path = CGPathCreateMutable();
 
-    // Geometry traced from macOS's NSCursor.arrow. (0, 0) remains the click
-    // hotspot while both the fill and outline scale from that same point.
-    CGPathMoveToPoint(path, NULL, 0.0, 0.0);
-    CGPathAddLineToPoint(path, NULL, 0.0 * scale, 16.1 * scale);
-    CGPathAddLineToPoint(path, NULL, 3.5 * scale, 12.7 * scale);
-    CGPathAddLineToPoint(path, NULL, 5.4 * scale, 18.5 * scale);
-    CGPathAddLineToPoint(path, NULL, 8.9 * scale, 17.1 * scale);
-    CGPathAddLineToPoint(path, NULL, 6.8 * scale, 11.7 * scale);
-    CGPathAddLineToPoint(path, NULL, 11.6 * scale, 11.7 * scale);
-    CGPathCloseSubpath(path);
+    // macOS 26/27's arrow (NSCursor.arrow), measured from its rendering on a
+    // Mac in points, with its rounded corners: the black arrow only, the white
+    // border is drawn outside it. (0, 0) is the tip and the click hotspot; the
+    // fill and the border scale from that point.
+    const CGPoint points[] = {
+        {0.00 * scale, 0.00 * scale},    // tip
+        {0.00 * scale, 11.80 * scale},   // bottom of the left edge
+        {2.95 * scale, 9.75 * scale},    // notch, left of the tail
+        {5.05 * scale, 14.65 * scale},   // tail, bottom left
+        {7.05 * scale, 13.95 * scale},   // tail, bottom right
+        {5.00 * scale, 8.95 * scale},    // notch, under the wing
+        {8.35 * scale, 8.55 * scale},    // wing
+    };
+    const CGFloat radii[] = {
+        0.35 * scale, 0.60 * scale, 0.30 * scale, 0.60 * scale,
+        0.60 * scale, 0.30 * scale, 0.60 * scale,
+    };
+    AddRoundedPolygon(path, points, radii, sizeof(points) / sizeof(points[0]));
 
     CGFloat angle = ArrowRotationForInterfaceOrientation(orientation);
     if (angle == 0.0) {
@@ -192,17 +218,28 @@ static PSPointerShape *ArrowPointerShape(
     return shape;
 }
 
+// The arrow as macOS draws it, over pointeruid's own rendering of the shape:
+// a white border (the outline layer: stroked twice the border width, filled
+// white), the black arrow on top of it (a sublayer), and a soft shadow.
 static CAShapeLayer *ArrowOutlineLayer(PUIDPointerShapeView *view) {
     CAShapeLayer *layer = objc_getAssociatedObject(view, ArrowOutlineLayerKey);
     if (!layer) {
         layer = [CAShapeLayer layer];
         layer.name = @"ArrowFinally.outline";
-        layer.fillColor = UIColor.clearColor.CGColor;
+        layer.fillColor = UIColor.whiteColor.CGColor;
         layer.strokeColor = UIColor.whiteColor.CGColor;
-        layer.lineJoin = kCALineJoinMiter;
-        layer.lineCap = kCALineCapSquare;
-        layer.miterLimit = 8.0;
+        layer.lineJoin = kCALineJoinRound;
+        layer.lineCap = kCALineCapRound;
         layer.zPosition = 1000.0;
+        layer.shadowColor = UIColor.blackColor.CGColor;
+        layer.shadowOpacity = 0.35;
+
+        CAShapeLayer *fill = [CAShapeLayer layer];
+        fill.name = @"ArrowFinally.fill";
+        fill.fillColor = UIColor.blackColor.CGColor;
+        fill.strokeColor = nil;
+        [layer addSublayer:fill];
+
         [view.layer addSublayer:layer];
         objc_setAssociatedObject(view, ArrowOutlineLayerKey, layer,
                                  OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -219,12 +256,25 @@ static void UpdateArrowOutline(PUIDPointerShapeView *view) {
     CGFloat scale = scaleNumber.doubleValue;
     CAShapeLayer *layer = ArrowOutlineLayer(view);
     UIScreen *screen = view.window.screen;
-    layer.contentsScale = screen ? screen.scale : UIScreen.mainScreen.scale;
-    CGPathRef path = CreateArrowCursorPath(
-        scale, InterfaceOrientationForView(view));
+    CGFloat contentsScale = screen ? screen.scale : UIScreen.mainScreen.scale;
+    UIInterfaceOrientation orientation = InterfaceOrientationForView(view);
+    CGPathRef path = CreateArrowCursorPath(scale, orientation);
+    layer.contentsScale = contentsScale;
     layer.frame = view.bounds;
     layer.path = path;
-    layer.lineWidth = MAX(1.25, scale);
+    layer.lineWidth = 2.0 * ArrowOutlineWidth * scale;
+
+    // The shadow falls toward the bottom of the interface, whatever way the
+    // display is turned (the path's space follows the display).
+    CGFloat angle = ArrowRotationForInterfaceOrientation(orientation);
+    CGFloat drop = 0.7 * scale;
+    layer.shadowOffset = CGSizeMake(-sin(angle) * drop, cos(angle) * drop);
+    layer.shadowRadius = 1.2 * scale;
+
+    CAShapeLayer *fill = (CAShapeLayer *)layer.sublayers.firstObject;
+    fill.contentsScale = contentsScale;
+    fill.frame = layer.bounds;
+    fill.path = path;
     CGPathRelease(path);
 
     // Internal pointer layers can be reordered during morph animations.
