@@ -102,6 +102,7 @@ scripts/publish.sh                                   # compile, et publie dans l
 
 | Revamped | Basé sur | Contenu |
 |---|---|---|
+| 0.4.1 | Arrow, Finally. 0.2.7 | Plus réactif et plus léger : plus d'animations parasites, ombre sans rendu hors écran, contour reconstruit seulement quand il change |
 | 0.4.0 | Arrow, Finally. 0.2.7 | Page de réglages, secouer pour localiser, masquer pendant la frappe, taille et ombre réglables |
 | 0.3.2 | Arrow, Finally. 0.2.7 | Sileo propose le redémarrage partiel après installation, comme ElleKit |
 | 0.3.1 | Arrow, Finally. 0.2.7 | Flèche 15 % plus grande (×1,15) |

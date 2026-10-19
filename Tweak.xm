@@ -90,6 +90,7 @@ static void *PreviousReplacementColorKey = &PreviousReplacementColorKey;
 static void *ArrowInterfaceOrientationKey = &ArrowInterfaceOrientationKey;
 static void *ArrowRenderedOrientationKey = &ArrowRenderedOrientationKey;
 static void *ArrowLastShapeWasSystemKey = &ArrowLastShapeWasSystemKey;
+static void *ArrowOutlineStateKey = &ArrowOutlineStateKey;
 
 // Pointer shape paths live in a coordinate space whose origin is the pointer
 // hotspot and whose axes follow the display, not the interface. The circular
@@ -261,6 +262,16 @@ static CAShapeLayer *ArrowOutlineLayer(PUIDPointerShapeView *view) {
         fill.strokeColor = nil;
         [layer addSublayer:fill];
 
+        // Standalone layers animate every property change for 0.25 s by default: the white
+        // border then trailed behind the arrow on every resize and morph. Never animate.
+        NSNull *none = NSNull.null;
+        NSDictionary *still = @{@"path": none, @"frame": none, @"bounds": none, @"position": none,
+                                @"shadowPath": none, @"shadowOffset": none, @"shadowRadius": none,
+                                @"shadowOpacity": none, @"lineWidth": none, @"contentsScale": none,
+                                @"hidden": none, @"sublayers": none, @"onOrderIn": none, @"onOrderOut": none};
+        layer.actions = still;
+        fill.actions = still;
+
         [view.layer addSublayer:layer];
         objc_setAssociatedObject(view, ArrowOutlineLayerKey, layer,
                                  OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -268,39 +279,87 @@ static CAShapeLayer *ArrowOutlineLayer(PUIDPointerShapeView *view) {
     return layer;
 }
 
+/// What the outline was last built for.
+typedef struct {
+    CGFloat scale;
+    NSInteger orientation;
+    CGFloat contentsScale;
+    BOOL shadow;
+    CGRect bounds;
+} ArrowOutlineState;
+
 static void UpdateArrowOutline(PUIDPointerShapeView *view) {
     NSNumber *scaleNumber = objc_getAssociatedObject(view, ArrowScaleKey);
     if (!scaleNumber) {
         return;
     }
 
-    CGFloat scale = scaleNumber.doubleValue;
     CAShapeLayer *layer = ArrowOutlineLayer(view);
+    // Internal pointer layers can be reordered during morph animations: keep ours on top,
+    // without re-inserting it (which redoes the layer tree) when it already is.
+    if (view.layer.sublayers.lastObject != layer) {
+        [view.layer addSublayer:layer];
+    }
+
+    CGFloat scale = scaleNumber.doubleValue;
     UIScreen *screen = view.window.screen;
     CGFloat contentsScale = screen ? screen.scale : UIScreen.mainScreen.scale;
     UIInterfaceOrientation orientation = InterfaceOrientationForView(view);
-    CGPathRef path = CreateArrowCursorPath(scale, orientation);
-    layer.contentsScale = contentsScale;
-    layer.frame = view.bounds;
-    layer.path = path;
-    layer.lineWidth = 2.0 * ArrowOutlineWidth * scale;
+    CGRect bounds = view.bounds;
 
-    // The shadow falls toward the bottom of the interface, whatever way the
-    // display is turned (the path's space follows the display).
+    // layoutSubviews runs on every pointer update: rebuild only when what the arrow looks like
+    // actually changed (size, orientation, display, shadow, bounds). The comparison reads
+    // the stored state in place, allocating nothing.
+    ArrowOutlineState current;
+    memset(&current, 0, sizeof current); // padding included, for memcmp
+    current.scale = scale;
+    current.orientation = (NSInteger)orientation;
+    current.contentsScale = contentsScale;
+    current.shadow = ArrowShadowEnabled;
+    current.bounds = bounds;
+    NSValue *stored = objc_getAssociatedObject(view, ArrowOutlineStateKey);
+    if (stored) {
+        ArrowOutlineState previous;
+        [stored getValue:&previous size:sizeof previous];
+        if (memcmp(&previous, &current, sizeof current) == 0) {
+            return;
+        }
+    }
+    objc_setAssociatedObject(view, ArrowOutlineStateKey,
+                             [NSValue valueWithBytes:&current objCType:@encode(ArrowOutlineState)],
+                             OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+
+    CGPathRef path = CreateArrowCursorPath(scale, orientation);
+    CGFloat lineWidth = 2.0 * ArrowOutlineWidth * scale;
+    layer.contentsScale = contentsScale;
+    layer.frame = bounds;
+    layer.path = path;
+    layer.lineWidth = lineWidth;
+
+    // The shadow falls toward the bottom of the interface, whatever way the display is turned
+    // (the path's space follows the display). Its shape is given (the arrow and its border),
+    // so Core Animation doesn't render the layer offscreen to find it on every frame.
     CGFloat angle = ArrowRotationForInterfaceOrientation(orientation);
     CGFloat drop = 0.7 * scale;
     layer.shadowOffset = CGSizeMake(-sin(angle) * drop, cos(angle) * drop);
     layer.shadowRadius = 1.2 * scale;
     layer.shadowOpacity = ArrowShadowEnabled ? 0.35 : 0.0;
+    if (ArrowShadowEnabled) {
+        CGPathRef border = CGPathCreateCopyByStrokingPath(path, NULL, lineWidth, kCGLineCapRound, kCGLineJoinRound, 0);
+        CGMutablePathRef shadow = CGPathCreateMutableCopy(path);
+        CGPathAddPath(shadow, NULL, border);
+        layer.shadowPath = shadow;
+        CGPathRelease(shadow);
+        CGPathRelease(border);
+    } else {
+        layer.shadowPath = NULL;
+    }
 
     CAShapeLayer *fill = (CAShapeLayer *)layer.sublayers.firstObject;
     fill.contentsScale = contentsScale;
     fill.frame = layer.bounds;
     fill.path = path;
     CGPathRelease(path);
-
-    // Internal pointer layers can be reordered during morph animations.
-    [view.layer addSublayer:layer];
 }
 
 static void RemoveArrowOutline(PUIDPointerShapeView *view) {
@@ -308,15 +367,22 @@ static void RemoveArrowOutline(PUIDPointerShapeView *view) {
     [layer removeFromSuperlayer];
     objc_setAssociatedObject(view, ArrowOutlineLayerKey, nil,
                              OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(view, ArrowOutlineStateKey, nil,
+                             OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
 static UIView *PointerRootViewForController(id controller) {
-    Ivar ivar = class_getInstanceVariable([controller class], "_pointerRootView");
+    // Looked up once: this runs on every pointer update.
+    static Ivar ivar;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ ivar = class_getInstanceVariable([controller class], "_pointerRootView"); });
     return ivar ? object_getIvar(controller, ivar) : nil;
 }
 
 static PUIDPointerShapeView *PointerShapeViewForController(id controller) {
-    Ivar ivar = class_getInstanceVariable([controller class], "_pointerShapeView");
+    static Ivar ivar;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ ivar = class_getInstanceVariable([controller class], "_pointerShapeView"); });
     return ivar ? object_getIvar(controller, ivar) : nil;
 }
 
@@ -324,8 +390,14 @@ static void SetPointerActuallyHidden(
     PUIDPointerRenderingRootViewController *controller, BOOL hidden) {
     // Use both levels: pointeruid can replace or reconfigure the composition
     // beneath its view controller while an auto-hide animation is running.
-    PointerRootViewForController(controller).hidden = hidden;
-    controller.view.hidden = hidden;
+    // Called on every pointer update: only touch UIKit when the state actually changes.
+    UIView *root = PointerRootViewForController(controller);
+    if (root.hidden != hidden) {
+        root.hidden = hidden;
+    }
+    if (controller.view.hidden != hidden) {
+        controller.view.hidden = hidden;
+    }
 }
 
 static void RefreshActiveArrow(PUIDPointerShapeView *view) {
@@ -655,22 +727,30 @@ static void StartObservingInterfaceOrientation(void) {
 updateHandlerCollection:(id)updateHandlerCollection
                   error:(NSError **)error {
     BOOL succeeded = %orig(state, options, updateHandlerCollection, error);
-    if (succeeded &&
-        [state respondsToSelector:@selector(isPointerAutoHidden)]) {
+    // This runs on every pointer move: what the state class offers is looked up once.
+    static BOOL hasAutoHidden, hasShakeMultiplier, hasPosition;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        Class cls = [state class];
+        hasAutoHidden = [cls instancesRespondToSelector:@selector(isPointerAutoHidden)];
+        hasShakeMultiplier = [cls instancesRespondToSelector:@selector(shakeToFindPointerSizeMultiplier)];
+        hasPosition = [cls instancesRespondToSelector:@selector(modelPointerReferencePosition)];
+    });
+    if (succeeded && hasAutoHidden) {
         // iPadOS's native auto-hide leaves a scaled, blurred pointer behind.
         // Hide the complete pointer composition only while the authoritative
         // auto-hidden state is active; normal movement clears it again.
         // iPadOS also auto-hides the pointer on its own while you type; with
         // "Masquer pendant la frappe" the arrow follows every such request.
         BOOL shouldFullyHide = state.isPointerAutoHidden &&
-            (AccessibilityPointerAutoHideEnabled() || ArrowHideWhileTyping);
+            (ArrowHideWhileTyping || AccessibilityPointerAutoHideEnabled());
         SetPointerActuallyHidden(self, shouldFullyHide);
     }
     // Shake to locate. iPadOS releases with their own shake-to-find put a size
     // multiplier in the state: the arrow (a custom path, which that multiplier
     // doesn't reach) follows it. Elsewhere the tweak detects the shake itself.
     if (succeeded && ArrowEnabled && ArrowShakeToLocate) {
-        if ([state respondsToSelector:@selector(shakeToFindPointerSizeMultiplier)]) {
+        if (hasShakeMultiplier) {
             CGFloat native = state.shakeToFindPointerSizeMultiplier;
             native = isfinite(native) ? MIN(MAX(native, 1.0), ArrowLocateMaxBoost) : 1.0;
             if (fabs(native - ArrowLocateBoost) > 0.01) {
@@ -679,7 +759,7 @@ updateHandlerCollection:(id)updateHandlerCollection
                     RefreshActiveArrow(view);
                 }
             }
-        } else if ([state respondsToSelector:@selector(modelPointerReferencePosition)]) {
+        } else if (hasPosition) {
             TrackPointerForShake(state.modelPointerReferencePosition);
         }
     }

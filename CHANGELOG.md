@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.4.1 (Revamped) - 2026-10-19
+
+Plus réactif et plus léger :
+
+- Plus aucune animation implicite sur le contour blanc et la flèche : Core
+  Animation animait chaque changement pendant 0,25 s, et le contour traînait
+  derrière le pointeur à chaque redimensionnement ou morphing.
+- L'ombre a une forme fournie (`shadowPath`) : plus de rendu hors écran à
+  chaque image pour la calculer.
+- Le contour n'est reconstruit que si son apparence change (taille,
+  orientation, écran, ombre, cadre), au lieu de l'être à chaque mise en page,
+  qui a lieu à chaque mouvement du pointeur. La comparaison n'alloue rien.
+- La couche n'est remise au premier plan que si elle ne l'est plus.
+- Le masquage du pointeur ne touche UIKit que s'il change.
+- Les capacités de l'état du pointeur et les ivars sont cherchées une seule
+  fois, au lieu de l'être à chaque mouvement.
+
 ## 0.4.0 (Revamped) - 2026-10-19
 
 - **Page de réglages** (Réglages › Arrow, Finally.), une option par fonction

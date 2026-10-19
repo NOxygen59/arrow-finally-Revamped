@@ -102,6 +102,7 @@ scripts/publish.sh                                   # builds, then publishes to
 
 | Revamped | Based on | What's new |
 |---|---|---|
+| 0.4.1 | Arrow, Finally. 0.2.7 | More responsive and lighter: no stray animations, shadow without offscreen rendering, border rebuilt only when it changes |
 | 0.4.0 | Arrow, Finally. 0.2.7 | Settings page, shake to locate, hide while typing, adjustable size and shadow |
 | 0.3.2 | Arrow, Finally. 0.2.7 | Sileo offers a userspace reboot after installing, as ElleKit does |
 | 0.3.1 | Arrow, Finally. 0.2.7 | Arrow 15% larger (×1.15) |
