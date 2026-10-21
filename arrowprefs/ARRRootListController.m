@@ -22,7 +22,7 @@ static NSString *const ARRDomain = @"com.andyching.ipadarrowcursor";
 
 /// Every setting back to its default (the cursor as installed).
 - (void)resetSettings {
-    for (NSString *key in @[@"enabled", @"size", @"shadow", @"shakeToLocate", @"hideWhileTyping"]) {
+    for (NSString *key in @[@"enabled", @"size", @"shadow", @"shakeToLocate", @"hideWhileTyping", @"uprightBeam"]) {
         CFPreferencesSetAppValue((__bridge CFStringRef)key, NULL, (__bridge CFStringRef)ARRDomain);
     }
     CFPreferencesAppSynchronize((__bridge CFStringRef)ARRDomain);

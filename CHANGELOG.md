@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.2 (Revamped) - 2026-10-21
+
+- **Curseur texte toujours vertical** : sur iPadOS 16, le texte reconnu dans
+  une image (Live Text) affichait la barre de texte couchée, à l'horizontale,
+  avec le trackpad du Magic Keyboard. Une barre couchée en travers de
+  l'interface est maintenant redressée. Réglage « Toujours vertical » (activé
+  par défaut), à couper pour du japonais écrit à la verticale.
+
 ## 0.4.1 (Revamped) - 2026-10-19
 
 Plus réactif et plus léger :

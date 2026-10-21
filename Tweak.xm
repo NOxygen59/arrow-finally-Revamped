@@ -11,8 +11,11 @@
 // local avoids shipping copied Apple headers.
 @interface PSPointerShape : NSObject
 @property (nonatomic, readonly) NSInteger shapeType;
+@property (nonatomic, readonly) CGRect bounds;
+@property (nonatomic, readonly) CGFloat cornerRadius;
 + (instancetype)systemShape;
 + (instancetype)customShapeWithPath:(CGPathRef)path;
++ (instancetype)roundedRectWithBounds:(CGRect)bounds cornerRadius:(CGFloat)cornerRadius;
 @end
 
 @interface PUIDPointerShapeView : UIView
@@ -62,6 +65,7 @@ updateHandlerCollection:(id)updateHandlerCollection
 @end
 
 static const NSInteger PSPointerShapeTypeSystem = 1;
+static const NSInteger PSPointerShapeTypeRoundedRect = 3;
 // Settings (Réglages › Arrow, Finally. Revamped), read at launch and whenever the
 // settings page posts ArrowPrefsChanged; pointeruid runs as mobile, like Settings.
 static NSString *const ArrowPrefsDomain = @"com.andyching.ipadarrowcursor";
@@ -75,6 +79,7 @@ static CGFloat ArrowUserScale = ArrowDefaultScale;
 static BOOL ArrowShadowEnabled = YES;
 static BOOL ArrowShakeToLocate = YES;
 static BOOL ArrowHideWhileTyping = YES;
+static BOOL ArrowUprightBeam = YES;
 
 // Shake to locate, as on macOS: a quick back-and-forth of the pointer makes the
 // arrow grow until the shaking stops. ArrowLocateBoost multiplies the scale.
@@ -462,6 +467,7 @@ static void LoadPreferences(void) {
     ArrowShadowEnabled = PreferenceBool(@"shadow", YES);
     ArrowShakeToLocate = PreferenceBool(@"shakeToLocate", YES);
     ArrowHideWhileTyping = PreferenceBool(@"hideWhileTyping", YES);
+    ArrowUprightBeam = PreferenceBool(@"uprightBeam", YES);
     id size = CFBridgingRelease(CFPreferencesCopyAppValue(
         CFSTR("size"), (__bridge CFStringRef)ArrowPrefsDomain));
     CGFloat scale = [size respondsToSelector:@selector(doubleValue)]
@@ -604,6 +610,45 @@ static void StartObservingInterfaceOrientation(void) {
     });
 }
 
+// MARK: Upright text beam
+
+/// The text beam stood up when it lies across the interface: on iPadOS 16, Live Text
+/// (VisionKit's text in images) asks for a horizontal beam over ordinary horizontal text.
+/// UIKit sends the beam as a thin rounded rect (3 pt wide, 24 to 100 pt long, centred on
+/// the hotspot), already in the display's coordinate space, as every shape that reaches
+/// this view. nil when the shape is not a lying beam.
+static PSPointerShape *UprightBeamForShape(PSPointerShape *shape, PUIDPointerShapeView *view) {
+    if (!ArrowUprightBeam || !shape ||
+        ![shape respondsToSelector:@selector(shapeType)] ||
+        shape.shapeType != PSPointerShapeTypeRoundedRect ||
+        ![shape respondsToSelector:@selector(bounds)]) {
+        return nil;
+    }
+    Class shapeClass = [shape class];
+    if (![shapeClass respondsToSelector:@selector(roundedRectWithBounds:cornerRadius:)]) {
+        return nil;
+    }
+    CGRect bounds = shape.bounds;
+    CGFloat width = bounds.size.width, height = bounds.size.height;
+    CGFloat thin = MIN(width, height), length = MAX(width, height);
+    if (!isfinite(thin) || !isfinite(length) || thin <= 0.0 ||
+        thin > 4.5 * AccessibilityPointerSizeMultiplier() || length < 3.0 * thin) {
+        return nil;
+    }
+    // The interface's vertical runs along the display's y axis in portrait (and on an
+    // external display, whose space is already the interface's), along x in landscape.
+    UIInterfaceOrientation orientation = InterfaceOrientationForView(view);
+    BOOL verticalIsDisplayY = !UIInterfaceOrientationIsLandscape(orientation);
+    BOOL longAlongY = height > width;
+    if (longAlongY == verticalIsDisplayY) {
+        return nil;
+    }
+    CGRect upright = CGRectMake(CGRectGetMidX(bounds) - height / 2.0,
+                                CGRectGetMidY(bounds) - width / 2.0, height, width);
+    CGFloat radius = [shape respondsToSelector:@selector(cornerRadius)] ? shape.cornerRadius : thin / 2.0;
+    return [shapeClass roundedRectWithBounds:upright cornerRadius:radius];
+}
+
 %hook PUIDPointerShapeView
 
 - (void)setPointerShape:(PSPointerShape *)shape
@@ -612,6 +657,13 @@ static void StartObservingInterfaceOrientation(void) {
     BOOL isSystemShape = shape &&
         [shape respondsToSelector:@selector(shapeType)] &&
         shape.shapeType == PSPointerShapeTypeSystem;
+    if (!isSystemShape && ArrowUprightBeam) {
+        StartObservingInterfaceOrientation();
+        PSPointerShape *upright = UprightBeamForShape(shape, self);
+        if (upright) {
+            shape = upright;
+        }
+    }
     if (isSystemShape) {
         [SystemShapeViews() addObject:self];
     } else {

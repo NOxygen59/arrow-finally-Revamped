@@ -68,6 +68,7 @@ If the cursor doesn't change, do a userspace reboot from Dopamine.
 | **Shadow** | Soft shadow under the arrow | On |
 | **Shake to locate** | Shaking the mouse or trackpad quickly makes the arrow grow until you find it, as on a Mac | On |
 | **Hide while typing** | The arrow disappears when iPadOS hides the pointer while you type, and comes back when the mouse moves | On |
+| **Text cursor › Always vertical** | Stands the text beam up when iPadOS shows it lying down (Live Text in images) | On |
 
 The page also links to **Accessibility › Pointer Control** (iPadOS's own size and auto-hide, which apply on top) and has a **Reset settings** button.
 
@@ -102,6 +103,7 @@ scripts/publish.sh                                   # builds, then publishes to
 
 | Revamped | Based on | What's new |
 |---|---|---|
+| 0.4.2 | Arrow, Finally. 0.2.7 | Text beam stood up on Live Text (text in images), “Always vertical” setting |
 | 0.4.1 | Arrow, Finally. 0.2.7 | More responsive and lighter: no stray animations, shadow without offscreen rendering, border rebuilt only when it changes |
 | 0.4.0 | Arrow, Finally. 0.2.7 | Settings page, shake to locate, hide while typing, adjustable size and shadow |
 | 0.3.2 | Arrow, Finally. 0.2.7 | Sileo offers a userspace reboot after installing, as ElleKit does |

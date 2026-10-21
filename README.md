@@ -68,6 +68,7 @@ Si le curseur ne change pas, faire un userspace reboot depuis Dopamine.
 | **Ombre** | Ombre douce sous la flèche | Activé |
 | **Secouer pour localiser** | Secouer vite la souris ou le trackpad fait grossir la flèche le temps de la retrouver, comme sur Mac | Activé |
 | **Masquer pendant la frappe** | La flèche disparaît quand iPadOS masque le pointeur pendant la frappe, et revient quand la souris bouge | Activé |
+| **Curseur texte › Toujours vertical** | Redresse la barre de texte quand iPadOS l'affiche couchée (Live Text dans les images) | Activé |
 
 La page contient aussi un raccourci vers **Accessibilité › Contrôle du pointeur** (taille et masquage automatique d'iPadOS, qui s'ajoutent aux réglages du tweak) et un bouton **Réinitialiser les réglages**.
 
@@ -102,6 +103,7 @@ scripts/publish.sh                                   # compile, et publie dans l
 
 | Revamped | Basé sur | Contenu |
 |---|---|---|
+| 0.4.2 | Arrow, Finally. 0.2.7 | Barre de texte redressée sur Live Text (texte des images), réglage « Toujours vertical » |
 | 0.4.1 | Arrow, Finally. 0.2.7 | Plus réactif et plus léger : plus d'animations parasites, ombre sans rendu hors écran, contour reconstruit seulement quand il change |
 | 0.4.0 | Arrow, Finally. 0.2.7 | Page de réglages, secouer pour localiser, masquer pendant la frappe, taille et ombre réglables |
 | 0.3.2 | Arrow, Finally. 0.2.7 | Sileo propose le redémarrage partiel après installation, comme ElleKit |
